@@ -30,7 +30,7 @@ Encoder-Decoder architecture based on LSTM and Luong Attention and . Two separat
 
 
 ## Train
-(Actually, you don't have to train all models. 1-3 well trained models models (1700~ epochs)  with validaion metric about 1.1-1.05 will give 0.9~ at leaderboard).
+(Actually, you don't have to train all models. 2-3 well trained models models (1700~ epochs)  with validaion metric about 1.1-1.05 will give 0.9~ at leaderboard).
 (One well fitted model with 2500 epochs and 1.0 +- 0.005 validaion metric will give 0.97-1.03~)
 
 ### Put unzipped dataset into '..' directory
