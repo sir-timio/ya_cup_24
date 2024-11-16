@@ -1,0 +1,29 @@
+SEED: 42
+
+ATTN: luong
+BATCH_SIZE: 128
+DEVICE: cuda
+
+EPOCHS: 1000
+FROM: 99999
+INTERVAL: 9999
+
+FOLD: 1
+HIDDEN_SIZE: 256
+LR: 0.001
+LSTM_CLS: LstmEncoderDecoderWithLuongAttention
+NUM_LAYERS: 2
+# scheduler_patience: 50
+VAL_RATIO: 0.1
+WD: 0.001
+DROPOUT: 0.1
+warmup_epochs: 10
+t_max: 100
+t_mult: 1
+scheduler: cosawr
+
+
+control_input_size: 2
+embedding_dim: 16
+localization_input_size: 6
+DS_ROOT: '../YandexCup2024v2'
