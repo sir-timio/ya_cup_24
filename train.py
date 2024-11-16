@@ -16,6 +16,19 @@ from tqdm import tqdm
 import argparse
 from src.test_callback import TestInferenceCallback
 
+from src.modeling import (
+    LstmEncoderDecoder,
+    LstmEncoderDecoderWithAttention,
+    LstmEncoderDecoderWithLuongAttention,
+    LstmEncoderDecoderWithDualAttention,
+)
+
+model_classes = {
+    "LstmEncoderDecoder": LstmEncoderDecoder,
+    "LstmEncoderDecoderWithAttention": LstmEncoderDecoderWithAttention,
+    "LstmEncoderDecoderWithLuongAttention": LstmEncoderDecoderWithLuongAttention,
+    "LstmEncoderDecoderWithDualAttention": LstmEncoderDecoderWithDualAttention,
+}
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Train Trajectory Prediction Model")
@@ -44,7 +57,7 @@ from src.dataset.utils import (
 from src.dataset.test_ds import TestDataset
 from src.dataset.train_ds import TrajectoryDataset
 from src.metric import calculate_metric_on_batch
-from src.modeling.lstm_dual_attn import LstmEncoderDecoderWithDualAttention
+# from src.modeling.lstm_dual_attn import LstmEncoderDecoderWithDualAttention
 
 # from src.modeling import (
 #     LstmEncoderDecoder,
@@ -139,9 +152,8 @@ if __name__ == "__main__":
 
     vehicle_feature_sizes = {k: len(v["map"]) for k, v in mapping.items()}
 
-    if LSTM_CLS_NAME == "LstmEncoderDecoderWithDualAttention":
-        LSTM_CLS = LstmEncoderDecoderWithDualAttention
-    else:
+    LSTM_CLS = model_classes.get(LSTM_CLS_NAME)
+    if LSTM_CLS is None:
         raise ValueError(f"Unknown model class: {LSTM_CLS_NAME}")
 
     model = LSTM_CLS(
