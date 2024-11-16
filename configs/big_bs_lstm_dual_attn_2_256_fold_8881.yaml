@@ -1,0 +1,24 @@
+SEED: 8881
+
+ATTN: dual_attn
+BATCH_SIZE: 1024
+DEVICE: cuda
+EPOCHS: 8000
+FROM: 5000
+INTERVAL: 500
+FOLD: 2
+HIDDEN_SIZE: 256
+LR: 0.001
+LSTM_CLS: LstmEncoderDecoderWithDualAttention
+NUM_LAYERS: 4
+SCHEDULER_PATIENCE: 25
+VAL_RATIO: 0.1
+WD: 0.001
+DROPOUT: 0.2
+warmup_epochs: 5
+t_max: 100
+
+control_input_size: 2
+embedding_dim: 64
+localization_input_size: 6
+DS_ROOT: '../YandexCup2024v2'
