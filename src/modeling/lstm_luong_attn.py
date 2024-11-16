@@ -12,69 +12,93 @@ class LstmEncoderDecoderWithLuongAttention(nn.Module):
         control_input_size,
         hidden_size,
         num_layers,
+        dropout=0.2,
     ):
         super(LstmEncoderDecoderWithLuongAttention, self).__init__()
 
         self.hidden_size = hidden_size
         self.num_layers = num_layers
+        self.dropout_rate = dropout
 
-        # Vehicle feature embeddings
-        self.vehicle_id_embedding = nn.Embedding(
-            num_embeddings=vehicle_feature_sizes["vehicle_id"],
-            embedding_dim=embedding_dim,
+        self.vehicle_id_embedding = nn.Sequential(
+            nn.Embedding(
+                num_embeddings=vehicle_feature_sizes["vehicle_id"],
+                embedding_dim=embedding_dim,
+            ),
+            nn.Dropout(p=dropout),
         )
-        self.vehicle_model_embedding = nn.Embedding(
-            num_embeddings=vehicle_feature_sizes["vehicle_model"],
-            embedding_dim=embedding_dim,
+        self.vehicle_model_embedding = nn.Sequential(
+            nn.Embedding(
+                num_embeddings=vehicle_feature_sizes["vehicle_model"],
+                embedding_dim=embedding_dim,
+            ),
+            nn.Dropout(p=dropout),
         )
-        self.vehicle_model_modification_embedding = nn.Embedding(
-            num_embeddings=vehicle_feature_sizes["vehicle_model_modification"],
-            embedding_dim=embedding_dim,
+        self.vehicle_model_modification_embedding = nn.Sequential(
+            nn.Embedding(
+                num_embeddings=vehicle_feature_sizes["vehicle_model_modification"],
+                embedding_dim=embedding_dim,
+            ),
+            nn.Dropout(p=dropout),
         )
-        self.location_reference_point_id_embedding = nn.Embedding(
-            num_embeddings=vehicle_feature_sizes["location_reference_point_id"],
-            embedding_dim=embedding_dim,
+        self.location_reference_point_id_embedding = nn.Sequential(
+            nn.Embedding(
+                num_embeddings=vehicle_feature_sizes["location_reference_point_id"],
+                embedding_dim=embedding_dim,
+            ),
+            nn.Dropout(p=dropout),
         )
-        self.tires_front_embedding = nn.Embedding(
-            num_embeddings=vehicle_feature_sizes["tires_front"],
-            embedding_dim=embedding_dim,
+        self.tires_front_embedding = nn.Sequential(
+            nn.Embedding(
+                num_embeddings=vehicle_feature_sizes["tires_front"],
+                embedding_dim=embedding_dim,
+            ),
+            nn.Dropout(p=dropout),
         )
-        self.tires_rear_embedding = nn.Embedding(
-            num_embeddings=vehicle_feature_sizes["tires_rear"],
-            embedding_dim=embedding_dim,
+        self.tires_rear_embedding = nn.Sequential(
+            nn.Embedding(
+                num_embeddings=vehicle_feature_sizes["tires_rear"],
+                embedding_dim=embedding_dim,
+            ),
+            nn.Dropout(p=dropout),
         )
 
-        # Fully connected layer to combine vehicle features
-        self.vehicle_fc = nn.Linear(embedding_dim * 6, hidden_size * 2)
+        self.vehicle_fc = nn.Sequential(
+            nn.Dropout(p=dropout),
+            nn.Linear(embedding_dim * 6, hidden_size * 2),
+        )
 
-        # Encoder LSTM for input_localization_seq
         self.localization_encoder = nn.LSTM(
             input_size=localization_input_size,
             hidden_size=hidden_size,
             num_layers=num_layers,
             batch_first=True,
             bidirectional=False,
+            dropout=0.0,
         )
 
-        # Encoder LSTM for input_control_seq
         self.control_encoder = nn.LSTM(
             input_size=control_input_size,
             hidden_size=hidden_size,
             num_layers=num_layers,
             batch_first=True,
             bidirectional=False,
+            dropout=0.0,
         )
 
-        # Decoder LSTM
         self.decoder = nn.LSTM(
             input_size=control_input_size,
             hidden_size=hidden_size * 2,  # Adjusted for concatenated context
             num_layers=num_layers,
             batch_first=True,
+            dropout=0.0,
         )
 
-        # Output layer
-        self.fc_out = nn.Linear(hidden_size * 2, localization_input_size)
+        # Output layer with Dropout
+        self.fc_out = nn.Sequential(
+            nn.Dropout(p=dropout),
+            nn.Linear(hidden_size * 2, localization_input_size),
+        )
 
     def forward(
         self,
@@ -83,7 +107,6 @@ class LstmEncoderDecoderWithLuongAttention(nn.Module):
         input_control_sequence,
         output_control_sequence,
     ):
-        # Embed vehicle features
         vehicle_id = self.vehicle_id_embedding(vehicle_features[:, 0])
         vehicle_model = self.vehicle_model_embedding(vehicle_features[:, 1])
         vehicle_model_modification = self.vehicle_model_modification_embedding(
@@ -109,9 +132,8 @@ class LstmEncoderDecoderWithLuongAttention(nn.Module):
 
         vehicle_features_encoded = self.vehicle_fc(
             vehicle_embedded
-        )  # Shape: [batch_size, hidden_size]
+        )  # Shape: [batch_size, hidden_size * 2]
 
-        # Encoder outputs
         localization_output, (hidden_loc, cell_loc) = self.localization_encoder(
             input_localization
         )
@@ -119,12 +141,10 @@ class LstmEncoderDecoderWithLuongAttention(nn.Module):
             input_control_sequence
         )
 
-        # Combine encoder outputs
         encoder_outputs = torch.cat(
             (localization_output, control_output), dim=1
         )  # [batch_size, seq_len_enc, hidden_size]
 
-        # Initial decoder hidden and cell states (concatenate and add vehicle features)
         hidden_enc = torch.cat(
             (hidden_loc, hidden_ctrl), dim=2
         )  # [num_layers, batch_size, hidden_size * 2]
@@ -132,53 +152,35 @@ class LstmEncoderDecoderWithLuongAttention(nn.Module):
             (cell_loc, cell_ctrl), dim=2
         )  # [num_layers, batch_size, hidden_size * 2]
 
-        # Incorporate vehicle_features_encoded into hidden state (first layer)
         hidden_dec = hidden_enc.clone()
         hidden_dec[0] = hidden_dec[0] + vehicle_features_encoded.unsqueeze(0)
 
         cell_dec = cell_enc
 
-        # Adjust the hidden size for the decoder due to attention
         hidden_size_dec = self.hidden_size * 2
 
-        # Pass the decoder input through decoder LSTM
-        # Adjust input size if necessary
-        seq_len_dec = output_control_sequence.size(1)
-
-        # Compute attention in batch
-        # Compute decoder outputs
         decoder_output, (hidden_dec, cell_dec) = self.decoder(
             output_control_sequence, (hidden_dec, cell_dec)
         )
-        # decoder_output: [batch_size, seq_len_dec, hidden_size_dec]
 
-        # Compute attention weights
-        # For Luong attention with dot product project decoder outputs back to hidden_size
         decoder_output_projected = decoder_output[
             :, :, : self.hidden_size
         ]  # [batch_size, seq_len_dec, hidden_size]
 
-        # Compute attention scores
         attn_scores = torch.bmm(
             decoder_output_projected, encoder_outputs.transpose(1, 2)
         )  # [batch_size, seq_len_dec, seq_len_enc]
 
-        # Apply softmax to get attention weights
-        attn_weights = F.softmax(
-            attn_scores, dim=2
-        )  # [batch_size, seq_len_dec, seq_len_enc]
+        attn_weights = F.softmax(attn_scores, dim=2)  # [batch_size, seq_len_dec, seq_len_enc]
 
-        # Compute context vectors
         context = torch.bmm(
             attn_weights, encoder_outputs
         )  # [batch_size, seq_len_dec, hidden_size]
 
-        # Concatenate decoder output and context
         combined = torch.cat(
             (decoder_output_projected, context), dim=2
         )  # [batch_size, seq_len_dec, hidden_size * 2]
 
-        # Output layer
         output_localization = self.fc_out(
             combined
         )  # [batch_size, seq_len_dec, localization_input_size]
