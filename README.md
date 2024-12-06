@@ -1,7 +1,7 @@
 # Yandex cup 2024 self-driving
 
 ## [3rd place out of 143](https://contest.yandex.ru/contest/69013/standings/?p=1)
-![alt text](image.png)
+![alt text](new_stand.png)
 
 ## Task
 Task is to simulate the vehicle's trajectory based on control commands (acceleration, steering) and  past .
